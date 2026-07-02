@@ -1,0 +1,13 @@
+Admin: http://localhost:8000/admin
+Kasir: http://localhost:8000/kasir
+
+Admin Pusat: admin@minimarket.test / password
+Manajer:     manajer@minimarket.test / password
+Kasir:       kasir@minimarket.test / password
+Staff:       staff@minimarket.test / password
+
+
+admin — super user, bisa semua, lihat semua outlet
+manajer — operasional penuh tapi terbatas ke outlet sendiri, bisa approve
+staff_gudang — inventory & pembelian doang (stok, transfer, opname, PO), gak bisa laporan keuangan
+kasir — cuma POS + shift kasir, nggak bisa masuk admin panel
