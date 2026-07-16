@@ -12,6 +12,7 @@ class TopProductsWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
     protected int|string|array $columnSpan = 'half';
+    protected static bool $isLazy = true;
 
     public static function canView(): bool
     {
@@ -22,7 +23,9 @@ class TopProductsWidget extends BaseWidget
     public function table(Table $table): Table
     {
         return $table
-            ->query(SaleItem::select('product_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_revenue'))
+            ->query(SaleItem::query()
+                ->select('product_id', DB::raw('SUM(qty) as total_qty'), DB::raw('SUM(subtotal) as total_revenue'))
+                ->with('product:id,nama')
                 ->whereHas('sale', fn ($q) => $q->where('status', 'completed'))
                 ->groupBy('product_id')->orderByDesc('total_qty')->limit(10))
             ->columns([

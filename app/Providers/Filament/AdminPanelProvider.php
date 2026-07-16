@@ -41,7 +41,7 @@ class AdminPanelProvider extends PanelProvider
                 Pages\Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([Widgets\AccountWidget::class, Widgets\FilamentInfoWidget::class])
+            ->widgets([]) // drop AccountWidget + FilamentInfoWidget (dead weight)
             ->middleware([EncryptCookies::class, AddQueuedCookiesToResponse::class, StartSession::class, AuthenticateSession::class, ShareErrorsFromSession::class, VerifyCsrfToken::class, SubstituteBindings::class, DisableBladeIconComponents::class, DispatchServingFilamentEvent::class])
             ->authMiddleware([Authenticate::class]);
     }

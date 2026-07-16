@@ -76,12 +76,12 @@
             <div class="flex flex-col md:flex-row gap-3 mb-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div class="flex-1">
                     <x-filament::input.wrapper>
-                        <x-filament::input type="text" placeholder="Cari nama produk, SKU, atau barcode..." wire:model.live.debounce.300ms="searchQuery" />
+                        <x-filament::input type="text" placeholder="Cari nama produk, SKU, atau barcode..." wire:model.live.debounce.400ms="searchQuery" />
                     </x-filament::input.wrapper>
                 </div>
                 <div style="width:220px; flex-shrink:0;">
                     <x-filament::input.wrapper>
-                        <x-filament::input id="barcode-input-field" type="text" placeholder="Scan Barcode..." wire:model.live="barcodeInput" wire:keydown.enter="scanBarcode" autofocus autocomplete="off" />
+                        <x-filament::input id="barcode-input-field" type="text" placeholder="Scan Barcode..." wire:model="barcodeInput" wire:keydown.enter="scanBarcode" autofocus autocomplete="off" />
                     </x-filament::input.wrapper>
                 </div>
             </div>
@@ -197,13 +197,13 @@
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600 dark:text-gray-400">Diskon (%)</span>
                     <x-filament::input.wrapper class="w-20">
-                        <x-filament::input type="number" wire:model.live="discount" class="text-right py-1 text-xs" min="0" max="100" />
+                        <x-filament::input type="number" wire:model.live.debounce.300ms="discount" class="text-right py-1 text-xs" min="0" max="100" />
                     </x-filament::input.wrapper>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600 dark:text-gray-400">Pajak (%)</span>
                     <x-filament::input.wrapper class="w-20">
-                        <x-filament::input type="number" wire:model.live="taxPercent" class="text-right py-1 text-xs" min="0" max="100" />
+                        <x-filament::input type="number" wire:model.live.debounce.300ms="taxPercent" class="text-right py-1 text-xs" min="0" max="100" />
                     </x-filament::input.wrapper>
                 </div>
                 <div class="flex justify-between font-black text-xl pt-3 border-t dark:border-gray-700">
@@ -224,6 +224,8 @@
     ==================================================== -->
     @if($isPaymentModalOpen)
     <style>
+        /* toast (fi-no z-50) must sit above this blur overlay */
+        .fi-no { z-index: 10050 !important; }
         .pay-overlay { position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:overlayIn .2s ease-out }
         @keyframes overlayIn { from{opacity:0} to{opacity:1} }
         .pay-modal { background:#fff;border-radius:20px;width:100%;max-width:420px;box-shadow:0 25px 60px rgba(0,0,0,0.35);overflow:hidden;animation:modalIn .25s cubic-bezier(.34,1.56,.64,1) }
@@ -237,7 +239,12 @@
         .pay-total-label { font-size:12px;font-weight:600;color:rgba(255,255,255,.75) }
         .pay-total-amount { font-size:22px;font-weight:900;color:#fff;font-family:monospace;letter-spacing:-.5px }
         .pay-section-label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin-bottom:6px }
-        .pay-method-btn { display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:#eff6ff;border:2px solid #2563eb;border-radius:10px;font-weight:700;font-size:13px;color:#1d4ed8;cursor:pointer;width:100% }
+        .pay-method-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px }
+        .pay-method-btn { display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 12px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;font-weight:700;font-size:13px;color:#475569;cursor:pointer;width:100%;transition:all .12s }
+        .pay-method-btn.active { background:#eff6ff;border-color:#2563eb;color:#1d4ed8 }
+        .pay-rfid-info { background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px }
+        .pay-rfid-name { font-size:14px;font-weight:800;color:#0c4a6e }
+        .pay-rfid-balance { font-size:13px;font-weight:700;color:#0369a1;font-family:monospace }
         .pay-cash-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:6px }
         .pay-cash-btn { padding:8px 4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:700;color:#374151;cursor:pointer;text-align:center;transition:all .12s }
         .pay-cash-btn:hover { background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8 }
@@ -266,11 +273,19 @@
                 </div>
                 <div>
                     <div class="pay-section-label">Metode Pembayaran</div>
-                    <button type="button" class="pay-method-btn">
-                        <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                        Tunai (Cash)
-                    </button>
+                    <div class="pay-method-grid">
+                        <button type="button" class="pay-method-btn {{ $paymentMethod === 'tunai' ? 'active' : '' }}" wire:click="setPaymentMethod('tunai')">
+                            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                            Tunai
+                        </button>
+                        <button type="button" class="pay-method-btn {{ $paymentMethod === 'rfid' ? 'active' : '' }}" wire:click="setPaymentMethod('rfid')">
+                            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+                            RFID
+                        </button>
+                    </div>
                 </div>
+
+                @if($paymentMethod === 'tunai')
                 <div>
                     <div class="pay-section-label">Uang Diterima (Rp)</div>
                     <x-filament::input.wrapper>
@@ -292,10 +307,43 @@
                     <div class="pay-change-label">Kembalian</div>
                     <div class="pay-change-amount">Rp {{ number_format($this->changeAmount, 0, ',', '.') }}</div>
                 </div>
+                @else
+                <div>
+                    <div class="pay-section-label">Tap / Scan Kartu RFID</div>
+                    <x-filament::input.wrapper>
+                        <x-filament::input
+                            type="text"
+                            wire:model="rfidUid"
+                            wire:keydown.enter="lookupRfid"
+                            id="rfid-input"
+                            placeholder="Tap kartu di reader..."
+                            autocomplete="off"
+                            class="font-mono text-lg py-2"
+                        />
+                    </x-filament::input.wrapper>
+                    <p style="font-size:11px;color:#94a3b8;margin-top:6px;">Reader ketik UID + Enter otomatis</p>
+                </div>
+                @if($rfidWallet)
+                <div class="pay-rfid-info">
+                    <div class="pay-rfid-name">{{ $rfidWallet['employee_name'] }}</div>
+                    <div class="pay-rfid-balance">Saldo: Rp {{ number_format($rfidWallet['balance'], 0, ',', '.') }}</div>
+                    @if($rfidWallet['balance'] < $this->total)
+                        <div style="font-size:12px;font-weight:700;color:#dc2626;margin-top:4px;">Saldo tidak cukup untuk total tagihan</div>
+                    @else
+                        <div style="font-size:12px;font-weight:600;color:#15803d;margin-top:4px;">Sisa setelah bayar: Rp {{ number_format($rfidWallet['balance'] - $this->total, 0, ',', '.') }}</div>
+                    @endif
+                </div>
+                @endif
+                @endif
             </div>
             <div class="pay-footer">
                 <button type="button" class="pay-btn-cancel" wire:click="closePaymentModal">Batal</button>
-                <button type="button" class="pay-btn-process" wire:click="checkout" @if($cashAmountReceived < $this->total) disabled @endif>Proses Pembayaran</button>
+                @php
+                    $canPay = $paymentMethod === 'tunai'
+                        ? $cashAmountReceived >= $this->total
+                        : ($rfidWallet && $rfidWallet['balance'] >= $this->total);
+                @endphp
+                <button type="button" class="pay-btn-process" wire:click="checkout" @if(! $canPay) disabled @endif>Proses Pembayaran</button>
             </div>
         </div>
     </div>
@@ -310,6 +358,7 @@
         @endphp
         @if($sale)
         <style>
+            .fi-no { z-index: 10050 !important; }
             .receipt-overlay { position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);animation:overlayIn .2s ease-out }
             .receipt-modal { background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 25px 60px rgba(0,0,0,.35);overflow:hidden;animation:modalIn .25s cubic-bezier(.34,1.56,.64,1);display:flex;flex-direction:column;max-height:90vh }
             .receipt-header { display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0 }
@@ -365,8 +414,11 @@
                                 @if($sale->tax > 0)<div style="display:flex;justify-content:space-between;"><span>Pajak</span><span>Rp {{ number_format($sale->tax, 0, ',', '.') }}</span></div>@endif
                                 <div style="display:flex;justify-content:space-between;font-weight:900;border-top:1px solid #ccc;padding-top:3px;font-size:11px;"><span>TOTAL</span><span>Rp {{ number_format($sale->total, 0, ',', '.') }}</span></div>
                                 <div style="border-top:1px dashed #ccc;margin-top:3px;padding-top:3px;">
-                                    <div style="display:flex;justify-content:space-between;"><span>Tunai</span><span>Rp {{ number_format($receiptCashReceived, 0, ',', '.') }}</span></div>
+                                    @php $payMethod = $sale->payments->first()?->payment_method ?? 'tunai'; @endphp
+                                    <div style="display:flex;justify-content:space-between;"><span>{{ $payMethod === 'rfid' ? 'RFID' : 'Tunai' }}</span><span>Rp {{ number_format($receiptCashReceived, 0, ',', '.') }}</span></div>
+                                    @if($payMethod !== 'rfid')
                                     <div style="display:flex;justify-content:space-between;font-weight:700;"><span>Kembalian</span><span>Rp {{ number_format($receiptChangeReturned, 0, ',', '.') }}</span></div>
+                                    @endif
                                 </div>
                             </div>
                             <div style="border-top:1px dashed #999;margin:6px 0;"></div>

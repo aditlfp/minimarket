@@ -16,23 +16,62 @@ class SaleService
     {
         return DB::transaction(function () use ($data) {
             $cashRegister = CashRegister::findOrFail($data['cash_register_id']);
-            if ($cashRegister->status !== 'open') throw new \RuntimeException('Cash register harus dalam status open.');
+            if ($cashRegister->status !== 'open') {
+                throw new \RuntimeException('Cash register harus dalam status open.');
+            }
             $warehouse = Warehouse::findOrFail($data['warehouse_id']);
-            $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad((string)(Sale::max('id') + 1), 4, '0', STR_PAD_LEFT);
-            $subtotal = 0; $saleItems = [];
+
+            $productIds = collect($data['items'])->pluck('product_id')->unique()->all();
+            $products = \App\Models\Product::with('conversions')
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id');
+
+            $unitIds = collect($data['items'])->pluck('unit_id')->filter()->unique()->all();
+            $units = \App\Models\ProductUnit::whereIn('id', $unitIds)->get()->keyBy('id');
+
+            $invoiceNumber = 'INV-'.date('Ymd').'-'.str_pad((string) (Sale::max('id') + 1), 4, '0', STR_PAD_LEFT);
+            $subtotal = 0;
+            $saleItems = [];
+
             foreach ($data['items'] as $item) {
-                $product = \App\Models\Product::with('conversions')->findOrFail($item['product_id']);
-                $unit = \App\Models\ProductUnit::findOrFail($item['unit_id'] ?? $product->base_unit_id);
-                $qty = (float)$item['qty']; $price = (float)($item['harga_satuan'] ?? $product->harga_jual);
+                $product = $products->get($item['product_id']);
+                if (! $product) {
+                    throw new \RuntimeException("Produk #{$item['product_id']} tidak ditemukan.");
+                }
+                $unitId = $item['unit_id'] ?? $product->base_unit_id;
+                $unit = $units->get($unitId) ?? \App\Models\ProductUnit::findOrFail($unitId);
+                $qty = (float) $item['qty'];
+                $price = (float) ($item['harga_satuan'] ?? $product->harga_jual);
                 $baseQty = $this->unitConversionService->toBaseUnit($product, $unit, $qty);
                 $this->stockService->deductStock(product: $product, warehouse: $warehouse, qty: $baseQty, notes: "Penjualan {$invoiceNumber}");
-                $lineSubtotal = $qty * $price; $subtotal += $lineSubtotal;
+                $lineSubtotal = $qty * $price;
+                $subtotal += $lineSubtotal;
                 $saleItems[] = ['product_id' => $product->id, 'unit_id' => $unit->id, 'qty' => $qty, 'harga_satuan' => $price, 'subtotal' => $lineSubtotal];
             }
-            $discount = (float)($data['discount'] ?? 0); $tax = (float)($data['tax'] ?? 0); $total = $subtotal - $discount + $tax;
-            $sale = Sale::create(['outlet_id' => $data['outlet_id'], 'warehouse_id' => $warehouse->id, 'cash_register_id' => $cashRegister->id, 'customer_id' => $data['customer_id'] ?? null, 'invoice_number' => $invoiceNumber, 'subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'total' => $total, 'status' => 'completed', 'created_by' => Auth::id()]);
-            foreach ($saleItems as $si) $sale->items()->create($si);
-            foreach ($data['payments'] as $payment) $sale->payments()->create(['payment_method' => $payment['method'], 'amount' => (float)$payment['amount']]);
+
+            $discount = (float) ($data['discount'] ?? 0);
+            $tax = (float) ($data['tax'] ?? 0);
+            $total = $subtotal - $discount + $tax;
+            $sale = Sale::create([
+                'outlet_id' => $data['outlet_id'],
+                'warehouse_id' => $warehouse->id,
+                'cash_register_id' => $cashRegister->id,
+                'customer_id' => $data['customer_id'] ?? null,
+                'invoice_number' => $invoiceNumber,
+                'subtotal' => $subtotal,
+                'discount' => $discount,
+                'tax' => $tax,
+                'total' => $total,
+                'status' => 'completed',
+                'created_by' => Auth::id(),
+            ]);
+            $sale->items()->createMany($saleItems);
+            $sale->payments()->createMany(collect($data['payments'])->map(fn ($p) => [
+                'payment_method' => $p['method'],
+                'amount' => (float) $p['amount'],
+            ])->all());
+
             return $sale->fresh(['items', 'payments', 'customer']);
         });
     }

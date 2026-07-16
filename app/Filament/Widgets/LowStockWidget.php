@@ -11,6 +11,7 @@ class LowStockWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
     protected int|string|array $columnSpan = 'half';
+    protected static bool $isLazy = true;
 
     public function table(Table $table): Table
     {
