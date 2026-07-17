@@ -95,11 +95,11 @@ class PointOfSale extends Page
         }
 
         $this->cart[$key] = [
-            'product_id' => $product->id,
+            'product_id' => (int) $product->id,
             'nama' => $product->nama,
             'price' => (float) $product->harga_jual,
             'qty' => 1,
-            'unit_id' => $product->base_unit_id,
+            'unit_id' => (int) $product->base_unit_id,
             'unit_name' => $product->baseUnit?->nama ?? 'pcs',
         ];
         $this->dispatch('refocus-barcode');
@@ -309,7 +309,14 @@ class PointOfSale extends Page
         if (! $this->warehouseId) { Notification::make()->title('Tidak ada gudang utama')->danger()->send(); return; }
 
         $items = [];
-        foreach ($this->cart as $item) $items[] = ['product_id' => $item['product_id'], 'unit_id' => $item['unit_id'], 'qty' => $item['qty'], 'harga_satuan' => $item['price']];
+        foreach ($this->cart as $item) {
+            $items[] = [
+                'product_id' => (int) $item['product_id'],
+                'unit_id' => (int) $item['unit_id'],
+                'qty' => (float) $item['qty'],
+                'harga_satuan' => (float) $item['price'],
+            ];
+        }
 
         $subtotal = $this->getCartSubtotalProperty();
         $method = $this->paymentMethod === 'rfid' ? 'rfid' : 'tunai';

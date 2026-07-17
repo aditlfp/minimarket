@@ -39,8 +39,8 @@ class SaleService
                 if (! $product) {
                     throw new \RuntimeException("Produk #{$item['product_id']} tidak ditemukan.");
                 }
-                $unitId = $item['unit_id'] ?? $product->base_unit_id;
-                $unit = $units->get($unitId) ?? \App\Models\ProductUnit::findOrFail($unitId);
+                $unitId = (int) ($item['unit_id'] ?? $product->base_unit_id);
+                $unit = $units->get($unitId) ?? $units->get((string) $unitId) ?? \App\Models\ProductUnit::findOrFail($unitId);
                 $qty = (float) $item['qty'];
                 $price = (float) ($item['harga_satuan'] ?? $product->harga_jual);
                 $baseQty = $this->unitConversionService->toBaseUnit($product, $unit, $qty);
