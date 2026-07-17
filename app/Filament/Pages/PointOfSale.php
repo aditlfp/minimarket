@@ -205,8 +205,20 @@ class PointOfSale extends Page
 
     public function lookupRfid(RfidWalletService $rfidWalletService): void
     {
+        $uid = trim($this->rfidUid);
+
+        // New scan often appends onto previous UID — strip old prefix
+        if ($this->rfidWallet && ! empty($this->rfidWallet['uid'])) {
+            $old = (string) $this->rfidWallet['uid'];
+            if ($uid !== $old && str_starts_with($uid, $old)) {
+                $uid = substr($uid, strlen($old));
+            }
+        }
+
+        $this->rfidUid = $uid;
+
         try {
-            $this->rfidWallet = $rfidWalletService->findByUid($this->rfidUid);
+            $this->rfidWallet = $rfidWalletService->findByUid($uid);
             if ($this->rfidWallet['balance'] < $this->getTotalProperty()) {
                 Notification::make()->title('Saldo tidak mencukupi')->warning()->send();
             } else {
@@ -216,6 +228,9 @@ class PointOfSale extends Page
             $this->rfidWallet = null;
             Notification::make()->title($e->getMessage())->danger()->send();
         }
+
+        // Select all → next tap/scan replaces value instead of appending
+        $this->js("setTimeout(() => { const el = document.getElementById('rfid-input'); if (el) { el.focus(); el.select(); } }, 50)");
     }
 
     public function closeReceiptModal(): void

@@ -319,6 +319,8 @@
                             placeholder="Tap kartu di reader..."
                             autocomplete="off"
                             class="font-mono text-lg py-2"
+                            x-on:focus="$el.select()"
+                            x-on:click="$el.select()"
                         />
                     </x-filament::input.wrapper>
                     <p style="font-size:11px;color:#94a3b8;margin-top:6px;">Reader ketik UID + Enter otomatis</p>
